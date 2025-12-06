@@ -303,6 +303,11 @@ class WorkLogRecorder(QMainWindow):
                 row += 1
         
         record_layout.addWidget(button_group)
+        
+        undo_btn = QPushButton("撤销 (1分钟内)")
+        undo_btn.setStyleSheet("background-color: #dc3545; color: white; padding: 10px; font-weight: bold; border-radius: 5px;")
+        undo_btn.clicked.connect(self.undo_last_log)
+        record_layout.addWidget(undo_btn)
         record_layout.addStretch()
 
     def init_stats_tab(self):
@@ -356,7 +361,7 @@ class WorkLogRecorder(QMainWindow):
         
         self.server_btn = QPushButton("开启手机记录")
         self.server_btn.setCheckable(True)
-        self.server_btn.clicked.connect(self.toggle_server)
+        self.server_btn.toggled.connect(self.toggle_server)
         control_layout.addWidget(self.server_btn, 0, 0, 1, 2)
         
         control_layout.addWidget(QLabel("访问密码:"), 1, 0)
@@ -505,6 +510,43 @@ class WorkLogRecorder(QMainWindow):
             CustomMessageBox(self, "成功", "工作日志已记录！").exec()
         except Exception as e:
             CustomMessageBox(self, "错误", f"保存日志失败: {str(e)}").exec()
+
+    def undo_last_log(self):
+        try:
+            with file_lock:
+                if not os.path.exists(self.log_file):
+                    CustomMessageBox(self, "提示", "日志文件不存在").exec()
+                    return
+
+                lines = []
+                with open(self.log_file, 'r', encoding='utf-8-sig') as f:
+                    reader = csv.reader(f)
+                    lines = list(reader)
+
+                if len(lines) <= 1:
+                    CustomMessageBox(self, "提示", "没有可撤销的记录").exec()
+                    return
+
+                last_row = lines[-1]
+                if not last_row:
+                    return
+
+                log_time_str = last_row[0]
+                try:
+                    log_time = datetime.strptime(log_time_str, "%Y-%m-%d %H:%M:%S")
+                    if (datetime.now() - log_time).total_seconds() <= 60:
+                        lines.pop()
+                        with open(self.log_file, 'w', newline='', encoding='utf-8-sig') as f:
+                            writer = csv.writer(f)
+                            writer.writerows(lines)
+                        CustomMessageBox(self, "成功", "已撤销上一条记录").exec()
+                    else:
+                        CustomMessageBox(self, "失败", "只能撤销1分钟内的记录").exec()
+                except ValueError:
+                    CustomMessageBox(self, "错误", "无法解析最后一条记录的时间").exec()
+
+        except Exception as e:
+            CustomMessageBox(self, "错误", f"撤销失败: {str(e)}").exec()
     
     def export_stats_excel(self):
         try:
@@ -612,7 +654,7 @@ class WorkLogRecorder(QMainWindow):
     def check_auto_start(self):
         if self.settings.value("auto_start_mobile_sync", False, type=bool):
             # 60秒后自动开启
-            QTimer.singleShot(60000, lambda: self.server_btn.click())
+            QTimer.singleShot(60000, lambda: self.server_btn.setChecked(True))
 
 class CustomMessageBox(QDialog):
     def __init__(self, parent=None, title="", message=""):
