@@ -67,19 +67,23 @@ HTML_TEMPLATE = """
         .btn { padding: 15px; background-color: white; border: 1px solid #ddd; border-radius: 8px; text-align: center; cursor: pointer; font-size: 14px; color: #333; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s; }
         .btn:active { background-color: #e9ecef; transform: scale(0.98); }
         .btn-other { background-color: #f8f9fa; color: #007bff; font-weight: bold; }
-        .success-msg { background-color: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin-bottom: 20px; text-align: center; display: none; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .success-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .success-content { background-color: white; padding: 25px; border-radius: 10px; width: 80%; max-width: 300px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .success-icon { color: #28a745; font-size: 48px; margin-bottom: 10px; }
+        .success-btn { background-color: #28a745; color: white; border: none; padding: 10px 30px; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 15px; }
+        .success-btn:hover { background-color: #218838; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; }
         .modal-content { background-color: white; margin: 20% auto; padding: 20px; width: 80%; max-width: 400px; border-radius: 8px; }
         textarea { width: 100%; height: 100px; margin: 10px 0; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
         .modal-btns { display: flex; justify-content: flex-end; gap: 10px; }
     </style>
     <script>
-        function showSuccess() {
-            const msg = document.getElementById('success-msg');
-            msg.style.display = 'block';
-            setTimeout(() => { msg.style.display = 'none'; }, 3000);
+        function closeSuccessModal() {
+            document.getElementById('successModal').style.display = 'none';
+            // 移除URL中的查询参数，防止刷新页面重复提交（简单处理，实际可能需要重定向）
+            // distinct from typical PRG, but helpful if just closing a modal
         }
-        
+
         function openOtherDialog() {
             document.getElementById('otherModal').style.display = 'block';
         }
@@ -92,9 +96,15 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h2>点击记录工作</h2>
+        
         {% if success %}
-        <div id="success-msg" class="success-msg" style="display: block;">记录成功！</div>
-        <script>setTimeout(() => { document.getElementById('success-msg').style.display = 'none'; }, 3000);</script>
+        <div id="successModal" class="success-modal" style="display: flex;">
+            <div class="success-content">
+                <div class="success-icon">✓</div>
+                <h3>记录成功！</h3>
+                <button class="success-btn" onclick="closeSuccessModal()">确定</button>
+            </div>
+        </div>
         {% endif %}
         
         <div class="grid">
@@ -237,7 +247,7 @@ class WorkLogRecorder(QMainWindow):
             "安防设备维护", "服务器维护", "硬件测试", "软件测试",
             "OA后台业务维护", "ERP维护", "PLM维护", "CRM维护", "加密系统维护",
             "SMB维护", "云平台业务维护", "电话系统维护", "投影仪维修调试",
-            "音响维修调试", "电路维修调试", "咨询服务", "系统重装", "其他"
+            "音响维修调试", "电路维修调试", "咨询服务", "系统重装", "食堂打卡机", "其他"
         ]
         
         self.server_thread = None
