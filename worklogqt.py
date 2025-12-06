@@ -80,8 +80,10 @@ HTML_TEMPLATE = """
     <script>
         function closeSuccessModal() {
             document.getElementById('successModal').style.display = 'none';
-            // 移除URL中的查询参数，防止刷新页面重复提交（简单处理，实际可能需要重定向）
-            // distinct from typical PRG, but helpful if just closing a modal
+        }
+
+        function closeUndoSuccessModal() {
+            document.getElementById('undoSuccessModal').style.display = 'none';
         }
 
         function openOtherDialog() {
@@ -106,6 +108,20 @@ HTML_TEMPLATE = """
             </div>
         </div>
         {% endif %}
+
+        {% if undo_success %}
+        <div id="undoSuccessModal" class="success-modal" style="display: flex;">
+            <div class="success-content">
+                <div class="success-icon">✓</div>
+                <h3>撤销成功！</h3>
+                <button class="success-btn" onclick="closeUndoSuccessModal()">确定</button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if undo_error %}
+        <div class="error" style="text-align: center; margin-bottom: 20px; color: red;">{{ undo_error }}</div>
+        {% endif %}
         
         <div class="grid">
             {% for category in categories %}
@@ -118,6 +134,12 @@ HTML_TEMPLATE = """
                 {% endif %}
             </form>
             {% endfor %}
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <form method="post" action="/undo">
+                 <button type="submit" class="btn" style="width: 100%; background-color: #dc3545; color: white; font-weight: bold;">撤销上一条 (1分钟内)</button>
+            </form>
         </div>
     </div>
 
@@ -168,6 +190,46 @@ class MobileServerThread(QThread):
                     return render_template_string(HTML_TEMPLATE, categories=self.categories, success=True)
             
             return render_template_string(HTML_TEMPLATE, categories=self.categories, success=False)
+
+        @self.app.route('/undo', methods=['POST'])
+        def undo():
+            if 'logged_in' not in session:
+                return redirect(url_for('login'))
+            
+            try:
+                with file_lock:
+                    if not os.path.exists(self.log_file):
+                         return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_error="日志文件不存在")
+                    
+                    lines = []
+                    with open(self.log_file, 'r', encoding='utf-8-sig') as f:
+                        reader = csv.reader(f)
+                        lines = list(reader)
+                    
+                    if len(lines) <= 1:
+                         return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_error="没有可撤销的记录")
+
+                    last_row = lines[-1]
+                    if not last_row:
+                        return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_error="记录格式错误")
+
+                    log_time_str = last_row[0]
+                    try:
+                        log_time = datetime.strptime(log_time_str, "%Y-%m-%d %H:%M:%S")
+                        
+                        if (datetime.now() - log_time).total_seconds() <= 60:
+                            lines.pop()
+                            with open(self.log_file, 'w', newline='', encoding='utf-8-sig') as f:
+                                writer = csv.writer(f)
+                                writer.writerows(lines)
+                            return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_success=True)
+                        else:
+                            return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_error="只能撤销1分钟内的记录")
+                    except ValueError:
+                         return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_error="无法解析记录时间")
+
+            except Exception as e:
+                return render_template_string(HTML_TEMPLATE, categories=self.categories, undo_error=f"撤销失败: {str(e)}")
 
         @self.app.route('/login', methods=['GET', 'POST'])
         def login():
