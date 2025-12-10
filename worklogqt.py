@@ -125,7 +125,7 @@ HTML_TEMPLATE = """
         
         <div class="grid">
             {% for category in categories %}
-            <form method="post" style="display: contents;">
+            <form method="post" action="/" style="display: contents;">
                 <input type="hidden" name="category" value="{{ category }}">
                 {% if category == '其他' %}
                 <div class="btn btn-other" onclick="openOtherDialog()">{{ category }}</div>
@@ -146,7 +146,7 @@ HTML_TEMPLATE = """
     <div id="otherModal" class="modal">
         <div class="modal-content">
             <h3>输入工作内容</h3>
-            <form method="post">
+            <form method="post" action="/">
                 <input type="hidden" name="category" value="其他">
                 <textarea name="content" placeholder="请输入具体工作内容..." required></textarea>
                 <div class="modal-btns">
